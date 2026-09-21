@@ -21,18 +21,18 @@ class PipelineConfig:
     # SETUP ARGS
     # ----------
 
-    HEADAS = "/Users/ethan/miniconda3/envs/phd/heasoft"
-    ARCHIVE_ROOT = "/Volumes/SSD10/BAT_archive/"
+    HEADAS = "/home/ethan/miniconda3/envs/phd/heasoft"
+    ARCHIVE_ROOT = "/mnt/d/BAT_archive/"
     N_PROC_PROCESS = 12
-    N_PROC_MOSAIC = 12
+    N_PROC_MOSAIC = 8
     AUTOMATE_ENVIRONMENT = True
     DO_PROCESSING = True
     DO_MOSAICING = True
     CHECK_PROCESSED = True
-    CHECK_MOSAICED = False
+    CHECK_MOSAICED = True
 
-    START_REV = 637
-    END_REV = 759
+    START_REV = 1500
+    END_REV = 1500
 
     # ---------------
     # PROCESSING ARGS
@@ -41,7 +41,7 @@ class PipelineConfig:
     ENERGY_BANDS = "14-75"
     CLEANSNR = 6.0
     INCATALOG = "files/HEXA_incatalog.fits"
-    NOISE_CORRECTION = True
+    NOISE_CORRECTION = False
 
     DETTHRESH = 15000
     DETTHRESH2 = 10900
@@ -52,7 +52,7 @@ class PipelineConfig:
     # MOSAICING ARGS
     # --------------
 
-    DO_WAVELET = False
+    DO_WAVELET = True
     PCODING_FILTER = True
     PCODING_THRESH = 0.05
 
@@ -60,10 +60,10 @@ class PipelineConfig:
     # IO ARGS
     # -------
 
-    KEEP_PROCESSED = False
+    KEEP_PROCESSED = True
     KEEP_MOSAICED = True
-    OUTPUT_MOSAICED = "../HEXA_pipeline_tests/chunk_test/bat_pn_map_nowave_revs/"
-    LABEL = "bat_pn_maps_nowave"
+    OUTPUT_MOSAICED = "../temp_mosaic/"
+    LABEL = "test"
     OUTPUT_PROCESSED = "../temp_proc/"
     COMPRESS = True
     COMPRESSION_LEVEL = 5

@@ -9,7 +9,6 @@ import multiprocess
 import numpy as np
 import pywt
 from astropy.io import fits
-from astropy.io.fits import HDUList
 from astropy.io.fits.verify import VerifyWarning
 from astropy.utils.exceptions import AstropyUserWarning, AstropyWarning
 from gammapy.maps import HpxGeom, HpxMap, Map
@@ -48,19 +47,16 @@ def split_image_list(a, n):
 
 
 def mosaic_images(
-    procid: int,
-    flux_map: Map,
-    err_map: Map,
-    pcoding_map: Map,
-    expo: float,
-    config,
+    procid: int, flux_map: Map, err_map: Map, pcoding_map: Map, expo: float, config
 ):
     # read images
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
 
     flux = flux_map.data
-    var = err_map.data * err_map.data
+    var = err_map.data
+    np.square(var, out=var)
+
     pcoding = pcoding_map.data
     expo = pcoding * expo
 
@@ -102,13 +98,13 @@ def mosaic_images(
 
     # store mask of nan flux values and set them to zero temporarily
     flux_nan = np.isnan(flux)
-    flux = np.nan_to_num(flux)
+    np.nan_to_num(flux, copy=False)
 
     # do wavelet filtering (this has to be done AFTER masking)
     if config.DO_WAVELET:
         max_level = pywt.dwtn_max_level(flux.shape, "sym8")
         coeffs = pywt.wavedec2(flux, "sym8", level=max_level)
-        coeffs[0] = np.zeros_like(coeffs[0])
+        coeffs[0].fill(0)
         flux = pywt.waverec2(coeffs, "sym8")
 
     # set values that were previously nan back to nan
@@ -141,42 +137,43 @@ def mosaic_images(
             print("WARNING: Mismatch in projected flux/var/expo NaNs detected.")
 
     # calculate weights
-    weights = 1 / var_proj.data
+    weights = var_proj.data
 
-    valid = weights > 0
-    if not np.all(np.isfinite(flux_proj.data[valid])):
+    good_weight = np.isfinite(weights) & (weights > 0)
+
+    # var -> weight
+    np.reciprocal(weights, out=weights, where=good_weight)
+    weights[~good_weight] = 0.0
+
+    if not np.all(np.isfinite(flux_proj.data[good_weight])):
         raise RuntimeError("Non-finite projected flux with non-zero weight detected.")
 
-    expo_proj.data[weights <= 0] = 0
+    expo_proj.data[~good_weight] = 0.0
 
     # nan/inf pixels get zero weight
     weights[~np.isfinite(weights)] = 0
 
     # nan pixels get zero value (ok as they also get zero weight)
-    flux_proj.data = np.nan_to_num(flux_proj.data)
+    flux_proj.data = np.nan_to_num(flux_proj.data, copy=False)
 
     # nan exposures get zero value, and hence don't contribute
-    expo_proj.data = np.nan_to_num(expo_proj.data)
+    expo_proj.data = np.nan_to_num(expo_proj.data, copy=False)
 
     # convert flux map to weighted fluxes
-    wflux_proj = flux_proj.data * weights
+    np.multiply(flux_proj.data, weights, out=flux_proj.data)
 
     if (
         not config.PCODING_FILTER
-        and np.nanmin(wflux_proj.data) < -8e5
-        or np.nanmax(wflux_proj.data) > 8e5
+        and np.nanmin(flux_proj.data) < -8e5
+        or np.nanmax(flux_proj.data) > 8e5
     ):
         return None
 
-    return wflux_proj.data, weights, expo_proj.data
+    return flux_proj.data, weights, expo_proj.data
 
 
 def mosaic_dispatch(
-    procid: int,
-    pfiles_path: str,
-    image_list: list[str],
-    config,
-    progress_queue=None,
+    procid: int, pfiles_path: str, image_list: list[str], config, progress_queue=None
 ):
     requested_bands = config.ENERGY_BANDS.split(",")
 
@@ -194,10 +191,11 @@ def mosaic_dispatch(
 
         with fits.open(flux_image) as flux_hdul, fits.open(err_image) as err_hdul:
             expo_s = flux_hdul[0].header["EXPOSURE"]
+            pcoding_map = Map.from_hdulist(flux_hdul, hdu=len(requested_bands))
+
             for idx, band in enumerate(requested_bands):
                 flux_map = Map.from_hdulist(flux_hdul, hdu=idx)
                 err_map = Map.from_hdulist(err_hdul, hdu=idx)
-                pcoding_map = Map.from_hdulist(flux_hdul, hdu=len(requested_bands))
 
                 proj = mosaic_images(
                     procid,
@@ -209,12 +207,23 @@ def mosaic_dispatch(
                 )
 
                 if proj is None:
+                    del flux_map
+                    del err_map
+
                     continue
 
                 weighted, weights, expo = proj
+
                 accumulators[f"local_weighted_{band}"].data += weighted
                 accumulators[f"local_weights_{band}"].data += weights
                 accumulators[f"local_expo_{band}"].data += expo
+
+                del proj
+                del weighted
+                del weights
+                del expo
+                del flux_map
+                del err_map
 
         if progress_queue is not None:
             progress_queue.put("progress")
@@ -232,6 +241,16 @@ def mosaic_dispatch(
 
     if progress_queue is not None:
         progress_queue.put("done")
+
+
+def append_map(path, map_):
+    hdu = map_.to_hdu()
+    fits.append(
+        path,
+        hdu.data,
+        hdu.header,
+        verify=False,
+    )
 
 
 def do_mosaic(rev: int, img_paths: tuple[str] | tuple[Path], config, progress=None):
@@ -278,6 +297,12 @@ def do_mosaic(rev: int, img_paths: tuple[str] | tuple[Path], config, progress=No
 
     progress.update_status("workers", f"Initialised {config.N_PROC_MOSAIC} workers.")
 
+    marker_path = os.path.join(
+        config.OUTPUT_MOSAICED, f"bat_{str(rev).zfill(4)}_completion.json"
+    )
+    if os.path.exists(marker_path):
+        os.remove(marker_path)
+
     try:
         # run processes
         for j in jobs:
@@ -314,101 +339,134 @@ def do_mosaic(rev: int, img_paths: tuple[str] | tuple[Path], config, progress=No
             failure_str = "\n".join(f"pid={j.pid}, exit={j.exitcode}" for j in failed)
             raise RuntimeError(f"Mosaicking Worker Failure:\n{failure_str}.")
 
-        # create maps for storing final weighted fluxes, weights and expo for each energy band
-        running = {}
-        for band in requested_bands:
-            running[f"weighted_final_{band}"] = HpxMap.from_geom(geom, dtype=np.float32)
-            running[f"weights_final_{band}"] = HpxMap.from_geom(geom, dtype=np.float32)
-            running[f"expo_final_{band}"] = HpxMap.from_geom(geom, dtype=np.float32)
-
-        flux_hdus, error_hdus, sig_hdus, expo_hdus = [], [], [], []
-
-        # read process files and combine into final map of weighted fluxes and weights
-        for band in config.ENERGY_BANDS.split(","):
-            for procid in procids:
-                flux_file = os.path.join(
-                    pfiles_path, f"phm_proc{procid}_{band}_wflux.fits"
-                )
-                weights_file = os.path.join(
-                    pfiles_path, f"phm_proc{procid}_{band}_weights.fits"
-                )
-                exposure_file = os.path.join(
-                    pfiles_path, f"phm_proc{procid}_{band}_expo.fits"
-                )
-
-                proc_wflux = HpxMap.read(flux_file)
-                proc_weights = HpxMap.read(weights_file)
-                proc_exposure = HpxMap.read(exposure_file)
-
-                running[f"weighted_final_{band}"].data += proc_wflux.data
-                running[f"weights_final_{band}"].data += proc_weights.data
-                running[f"expo_final_{band}"].data += proc_exposure.data
-
-            # setup final flux, err and sig maps
-            final_flux = HpxMap.from_geom(geom, dtype=np.float32)
-            final_error = HpxMap.from_geom(geom, dtype=np.float32)
-            final_sig = HpxMap.from_geom(geom, dtype=np.float32)
-            final_expo = HpxMap.from_geom(geom, dtype=np.float32)
-
-            # store final data
-            final_flux.data = np.divide(
-                running[f"weighted_final_{band}"].data,
-                running[f"weights_final_{band}"].data,
-            )
-            final_error.data = np.divide(
-                1, np.sqrt(running[f"weights_final_{band}"].data)
-            )
-            final_sig.data = np.divide(final_flux.data, final_error.data)
-            final_expo.data = running[f"expo_final_{band}"].data
-
-            # ensure matching nans in final tables
-            final_mask = (
-                np.isfinite(final_flux.data)
-                & np.isfinite(final_error.data)
-                & (final_error.data > 0)
-            )
-            final_flux.data[~final_mask] = np.nan
-            final_error.data[~final_mask] = np.nan
-            final_sig.data[~final_mask] = np.nan
-            final_expo.data[~final_mask] = np.nan
-
-            flux_hdus.append(final_flux.to_hdu())
-            error_hdus.append(final_error.to_hdu())
-            sig_hdus.append(final_sig.to_hdu())
-            expo_hdus.append(final_expo.to_hdu())
-
-        # write files to storage
+        # set up output files
         if not config.LABEL:
-            out_path = os.path.join(config.OUTPUT_MOSAICED, f"bat_{str(rev).zfill(4)}")
+            out_path = os.path.join(
+                config.OUTPUT_MOSAICED,
+                f"bat_{str(rev).zfill(4)}",
+            )
         else:
             out_path = os.path.join(
-                config.OUTPUT_MOSAICED, f"bat_{str(rev).zfill(4)}_{config.LABEL}"
+                config.OUTPUT_MOSAICED,
+                f"bat_{str(rev).zfill(4)}_{config.LABEL}",
             )
 
-        marker_path = os.path.join(
-            config.OUTPUT_MOSAICED, f"bat_{str(rev).zfill(4)}_completion.json"
-        )
+        flux_path = f"{out_path}_flux.fits"
+        error_path = f"{out_path}_error.fits"
+        sig_path = f"{out_path}_sig.fits"
+        expo_path = f"{out_path}_expo.fits"
 
-        if os.path.exists(marker_path):
-            os.remove(marker_path)
+        out_paths = [
+            flux_path,
+            error_path,
+            sig_path,
+            expo_path,
+        ]
 
-        out_paths = []
+        for path in out_paths:
+            fits.PrimaryHDU().writeto(path, overwrite=True)
 
-        for hdul, suffix in zip(
-            [flux_hdus, error_hdus, sig_hdus, expo_hdus],
-            ["flux", "error", "sig", "expo"],
-        ):
-            path = f"{out_path}_{suffix}.fits"
+        for band in requested_bands:
+            weighted = HpxMap.from_geom(geom, dtype=np.float32)
+            weights = HpxMap.from_geom(geom, dtype=np.float32)
+            exposure = HpxMap.from_geom(geom, dtype=np.float32)
 
-            primary = fits.PrimaryHDU()
-            HDUList([primary] + hdul).writeto(path, overwrite=True)
+            for procid in procids:
+                weighted_file = os.path.join(
+                    pfiles_path,
+                    f"phm_proc{procid}_{band}_wflux.fits",
+                )
+                weights_file = os.path.join(
+                    pfiles_path,
+                    f"phm_proc{procid}_{band}_weights.fits",
+                )
+                exposure_file = os.path.join(
+                    pfiles_path,
+                    f"phm_proc{procid}_{band}_expo.fits",
+                )
 
-            out_paths.append(path)
+                proc_map = HpxMap.read(weighted_file)
+                weighted.data += proc_map.data
+                del proc_map
+
+                proc_map = HpxMap.read(weights_file)
+                weights.data += proc_map.data
+                del proc_map
+
+                proc_map = HpxMap.read(exposure_file)
+                exposure.data += proc_map.data
+                del proc_map
+
+            valid = np.isfinite(weights.data) & (weights.data > 0)
+
+            # weighted flux -> final flux
+            np.divide(
+                weighted.data,
+                weights.data,
+                out=weighted.data,
+                where=valid,
+            )
+            weighted.data[~valid] = np.nan
+
+            # weights -> final error
+            np.sqrt(
+                weights.data,
+                out=weights.data,
+                where=valid,
+            )
+
+            np.reciprocal(
+                weights.data,
+                out=weights.data,
+                where=valid,
+            )
+
+            weights.data[~valid] = np.nan
+
+            # check data validity
+            final_mask = (
+                np.isfinite(weighted.data)
+                & np.isfinite(weights.data)
+                & (weights.data > 0)
+            )
+
+            weighted.data[~final_mask] = np.nan
+            weights.data[~final_mask] = np.nan
+            exposure.data[~final_mask] = np.nan
+
+            # At this point:
+            # weighted = final flux
+            # weights = final error
+            # exposure = final exposure
+            append_map(flux_path, weighted)
+            append_map(error_path, weights)
+            append_map(expo_path, exposure)
+
+            # reuse flux array for significance
+            np.divide(
+                weighted.data,
+                weights.data,
+                out=weighted.data,
+                where=final_mask,
+            )
+            weighted.data[~final_mask] = np.nan
+
+            # weighted now contains significance
+            append_map(sig_path, weighted)
+
+            del weighted
+            del weights
+            del exposure
+            del valid
+            del final_mask
 
         # in case maps are being stored in the same directory as processed data, only gzip these specific files
         if config.COMPRESS:
             for file in out_paths:
                 gzip_file(file, config.COMPRESSION_LEVEL)
+
+        if os.path.exists(marker_path):
+            os.remove(marker_path)
 
         # write completion marker to output directory
         marker = get_mosaic_marker(
