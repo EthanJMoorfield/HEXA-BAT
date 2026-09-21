@@ -1,0 +1,27 @@
+Swift/MIS CalDB 20050805 Release Notes
+========================================================================
+
+Update 2005-08-05
+
+   The clock correction file used by 'swifttime' and 'barycorr' has 
+   been changed to FITS format and is now stored in CALDB. 
+   With the Swift software release 2.1 (Heasoft 6.0.2, August 2005), 
+   the default behavior of both tools has been modified to retrieve the
+   FITS version of the clock correction file from the CALDB. 
+   The old ascii formatted file 'swco.dat' circulated up to now is still
+   supported however new clock correction updates will be added only to the 
+   FITS version of the file.
+   The latest version of the 'swco.dat' is valid till June 2005.   
+
+   The FITS correction file will be updated quickly on about a bi-weekly 
+   schedule, it is recommended to users to always check out from CALDB 
+   the latest version of the file or set CALDB with the remote access. 
+   The latest version version of the file is at 
+     ftp://legacy.gsfc.nasa.gov/caldb/data/swift/mis/bcf/clock/
+
+   named as 
+    swclockcor20041120vNNN.fits 
+
+   where NNN is the version number. Use always the higher version  
+
+

@@ -1,0 +1,6 @@
+__pycache__/
+extras/
+
+files/hexa_pattern_maps/
+files/one_band_pattern_maps/
+proc/

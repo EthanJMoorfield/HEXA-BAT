@@ -1,0 +1,17 @@
+The swco.dat file is used by the 'barycorr' tool to correct Swift
+times for the measured clock offset (based on data provided by the
+Swift MOC). This is an ascii file with identical structure to the RXTE
+file 'tdc.dat' used by various RXTE-specific tools. The columns contain
+polynomial coefficients for various time ranges and are used to compute
+the appropriate clock correction for any given mission elapsed time
+(since launch).
+
+In contrast to RXTE where these fine clock corrections have magnitudes
+typically measured in the tens of microseconds, the Swift corrections
+are much larger (0.6-0.7 seconds currently) and more regular. At this
+writing (March 2005) the spacecraft clock lags behind reference clocks
+on the ground but also runs fast.  The current trend is for the clock
+to slowly accelerate.
+
+ -M. Tripicco
+  Swift Science Center
