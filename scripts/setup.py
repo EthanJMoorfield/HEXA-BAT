@@ -36,22 +36,21 @@ def setup_heasoft(headas_path):
 
     caldbinfo infomode=INST chatter=0 mission=SWIFT instrument=BAT > /dev/null
 
-    env
+    env -0
     """
 
     proc = subprocess.run(
         ["bash", "-c", cmd],
         stdout=subprocess.PIPE,
-        text=True,
         check=True,
     )
 
-    for line in proc.stdout.splitlines():
-        if "=" not in line:
+    for entry in proc.stdout.split(b"\0"):
+        if not entry or b"=" not in entry:
             continue
 
-        key, value = line.split("=", 1)
-        os.environ[key] = value
+        key, value = entry.split(b"=", 1)
+        os.environ[os.fsdecode(key)] = os.fsdecode(value)
 
 
 def reset_dir(path):

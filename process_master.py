@@ -21,15 +21,15 @@ class PipelineConfig:
     # SETUP ARGS
     # ----------
 
-    HEADAS = "/home/ethan/miniconda3/envs/phd/heasoft"
-    ARCHIVE_ROOT = "/mnt/d/BAT_archive/"
-    N_PROC_PROCESS = 12
+    HEADAS = "/home/ethan/miniconda3/envs/venv/heasoft"
+    ARCHIVE_ROOT = "/data/BAT_archive/"
+    N_PROC_PROCESS = 8
     N_PROC_MOSAIC = 8
     AUTOMATE_ENVIRONMENT = True
     DO_PROCESSING = True
-    DO_MOSAICING = True
+    DO_MOSAICING = False
     CHECK_PROCESSED = True
-    CHECK_MOSAICED = True
+    CHECK_MOSAICED = False
 
     START_REV = 1500
     END_REV = 1500
@@ -62,14 +62,14 @@ class PipelineConfig:
 
     KEEP_PROCESSED = True
     KEEP_MOSAICED = True
-    OUTPUT_MOSAICED = "../temp_mosaic/"
-    LABEL = "test"
+    OUTPUT_MOSAICED = ""
+    LABEL = ""
     OUTPUT_PROCESSED = "../temp_proc/"
     COMPRESS = True
     COMPRESSION_LEVEL = 5
-    DECLUTTER = True
+    DECLUTTER = False
     OFFLOAD = False
-    OFFLOAD_DIR = ""
+    OFFLOAD_DIR = "../benchmarks"
 
 
 if __name__ == "__main__":
