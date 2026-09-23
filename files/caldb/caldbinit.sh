@@ -9,7 +9,7 @@
 #
 #-----------------------------------------------------------------------
 
-#CALDB=/data/ethan/pipeline/files/caldb; export CALDB
+#CALDB=/Users/ethan/phd/pipeline/files/caldb; export CALDB
 #CALDBCONFIG=$CALDB/software/tools/caldb.config; export CALDBCONFIG
 #CALDBALIAS=$CALDB/software/tools/alias_config.fits; export CALDBALIAS
 
@@ -22,7 +22,7 @@
 #      YOUR LOCAL INSTALLATION
 
 if [ -z "$CALDB" ]; then
-    CALDB=/data/ethan/pipeline/files/caldb; export CALDB
+    CALDB=/Users/ethan/phd/pipeline/files/caldb; export CALDB
 fi  
 
 if [ -z "$CALDBCONFIG" ]; then

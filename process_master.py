@@ -30,6 +30,7 @@ class PipelineConfig:
     DO_MOSAICING = False
     CHECK_PROCESSED = True
     CHECK_MOSAICED = False
+    CHECK_ARCHIVE = False
 
     START_REV = 1500
     END_REV = 1500

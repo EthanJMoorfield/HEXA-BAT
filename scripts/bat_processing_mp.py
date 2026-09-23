@@ -23,6 +23,7 @@ _WORKER_START_TIME = None
 
 EXPECTED_ERRORS = {
     "invalid_dph_times": re.compile(r"^ERROR: input DPH has invalid times"),
+    "zero_exposure": re.compile(r"^ERROR: zero exposure in observation"),
     "no_master_gti": re.compile(r"^ERROR: master GTI contained no time intervals"),
     "no_standard_gti": re.compile(r"/gti/.*\.gti contained no good times"),
     "no_overlapping_gtis": re.compile(
@@ -229,7 +230,10 @@ def check_clutter(fname):
 
 
 def store_results(work_outdir, outdir):
-    backup_outdir = f"{outdir}.old.{os.getpid()}"
+    backup_outdir = os.path.join(
+        os.path.dirname(outdir),
+        f".{os.path.basename(outdir)}.old.{os.getpid()}",
+    )
     old_moved = False
 
     shutil.rmtree(backup_outdir, ignore_errors=True)

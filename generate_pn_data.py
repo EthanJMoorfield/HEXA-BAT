@@ -9,14 +9,14 @@ class PipelineConfig:
     # CHANGE THESE IF NEEDED
     # ----------------------
 
-    HEADAS = ""
-    ARCHIVE_ROOT = ""
-    N_PROC_PROCESS = 8
-    START_REV = 0
-    END_REV = 2177
+    HEADAS = "/Users/ethan/miniconda3/envs/phd/heasoft"
+    ARCHIVE_ROOT = "/Volumes/SSD10/BAT_archive"
+    N_PROC_PROCESS = 12
+    START_REV = 260
+    END_REV = 300
     ENERGY_BANDS = "14-20,20-24,24-35,35-50,50-75,75-100,100-150,150-195"
     OUTPUT_PROCESSED = "../temp_proc/"
-    OFFLOAD_DIR = ""
+    OFFLOAD_DIR = "/Volumes/Godzilla/HEXA_PN_data"
 
     # ----------------------------
     # SHOULDN'T NEED TO BE CHANGED
@@ -28,6 +28,7 @@ class PipelineConfig:
     DO_PROCESSING = True
     CHECK_MOSAICED = False
     CHECK_PROCESSED = True
+    CHECK_ARCHIVES = True
     NOISE_CORRECTION = False
     CLEANSNR = 6.0
     DETTHRESH = 15000

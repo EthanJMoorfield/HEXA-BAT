@@ -8,6 +8,8 @@ from datetime import datetime
 from astropy.io import fits
 from astropy.table import Table
 
+from .util import check_marker, get_proc_marker
+
 with fits.open("files/independent_bat_revs_master.fits") as f:
     obs_map = Table(f[1].data).to_pandas()
 
@@ -21,20 +23,36 @@ def _log(msg):
         f.write(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}\n")
 
 
-def get_rev_paths(rev, src):
+def get_rev_paths(rev, src, config):
     rows = obs_map[obs_map["rev"] == rev][["month", "obs"]].drop_duplicates()
 
     paths = []
 
+    expected_marker = get_proc_marker(
+        config.ENERGY_BANDS,
+        config.DETTHRESH,
+        config.DETTHRESH2,
+        config.EXPOTHRESH,
+        config.RATEMINTHRESH,
+        config.INCATALOG,
+        config.CLEANSNR,
+        config.NOISE_CORRECTION,
+        config.DECLUTTER,
+        config.COMPRESS,
+    )
+
     for _, row in rows.iterrows():
-        path = os.path.join(
-            src,
-            row["month"],
-            row["obs"],
-        )
+        path = os.path.join(src, row["month"], row["obs"])
 
         if not os.path.isdir(path):
             raise RuntimeError(f"Processed observation missing: {path}")
+
+        marker_path = os.path.join(path, "proc_completion.json")
+
+        if not check_marker(marker_path, "proc", expected_marker):
+            raise RuntimeError(
+                f"Processed observation incomplete or incompatible: {path}"
+            )
 
         paths.append(path)
 
@@ -62,14 +80,17 @@ def archive(paths, src, dst):
         raise
 
 
-def offload(rev, src, archive_dir):
+def offload(rev, config):
     start = time.time()
+
+    src = config.OUTPUT_PROCESSED
+    archive_dir = config.OFFLOAD_DIR
 
     os.makedirs(archive_dir, exist_ok=True)
 
     _log(f"archive started for rev {rev}")
 
-    paths = get_rev_paths(rev, src)
+    paths = get_rev_paths(rev, src, config)
 
     if not paths:
         raise RuntimeError(f"No observations found for revolution {rev}.")
