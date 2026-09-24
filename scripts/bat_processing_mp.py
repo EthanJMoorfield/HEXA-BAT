@@ -21,7 +21,7 @@ _WORKER_ID = None
 _WORKER_CONFIG = None
 _WORKER_START_TIME = None
 
-EXPECTED_ERRORS = {
+EXPECTED_DATA_ERRORS = {
     "invalid_dph_times": re.compile(r"^ERROR: input DPH has invalid times"),
     "zero_exposure": re.compile(r"^ERROR: zero exposure in observation"),
     "no_master_gti": re.compile(r"^ERROR: master GTI contained no time intervals"),
@@ -31,12 +31,25 @@ EXPECTED_ERRORS = {
     ),
 }
 
+ARCHIVE_DATA_ERRORS = {
+    "missing_hk_extension": re.compile(
+        r"maketime.*could not parse the input filename: .*"
+        r"/bat/hk/[^/\s]+\.hk(?:\.gz)?\[[^\]]+\].*?"
+        r"ffopen could not move to the specified extension:",
+        flags=re.DOTALL,
+    )
+}
+
 
 def classify_failure(output: str) -> str | None:
+    for err, expr in ARCHIVE_DATA_ERRORS.items():
+        if expr.search(output):
+            return err
+
     for line in output.splitlines():
         stripped = line.strip()
 
-        for reason, pattern in EXPECTED_ERRORS.items():
+        for reason, pattern in EXPECTED_DATA_ERRORS.items():
             if pattern.search(stripped):
                 return reason
 
@@ -454,11 +467,7 @@ def _process_one(path):
             shutil.rmtree(work_outdir, ignore_errors=True)
 
 
-def process(
-    paths,
-    config,
-    progress=None,
-):
+def process(paths, config, progress=None):
     staging_dir = Path("./proc/staging")
     pfiles_dir = Path("./proc/proc_pfiles")
 
