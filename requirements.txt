@@ -1,0 +1,5 @@
+fitsio
+multiprocess
+PyWavelets
+gammapy
+regions<0.12

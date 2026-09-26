@@ -33,11 +33,15 @@ EXPECTED_DATA_ERRORS = {
 
 ARCHIVE_DATA_ERRORS = {
     "missing_hk_extension": re.compile(
-        r"maketime.*could not parse the input filename: .*"
-        r"/bat/hk/[^/\s]+\.hk(?:\.gz)?\[[^\]]+\].*?"
+        r"/bat/hk/\S+\.hk(?:\.gz)?\[[^\]]+\].*?"
         r"ffopen could not move to the specified extension:",
-        flags=re.DOTALL,
-    )
+        re.DOTALL,
+    ),
+    "no_gain_offset_file": re.compile(
+        r"WARNING: could not find gain/offset file for .*?"
+        r"ERROR: no erebinned files were created",
+        re.DOTALL,
+    ),
 }
 
 
