@@ -1,6 +1,8 @@
 __pycache__/
 extras/
 
+pilot.py
+
 files/hexa_pattern_maps/
 files/one_band_pattern_maps/
 proc/

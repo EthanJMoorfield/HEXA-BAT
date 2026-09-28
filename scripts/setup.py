@@ -20,8 +20,10 @@ def update_caldb_init():
 
 
 def setup_heasoft():
-    headas_path = os.environ("HEADAS")
-    print(headas_path)
+    if not os.environ.get("HEADAS", default=None):
+        raise RuntimeError("Could not find HEASoft installation.")
+
+    headas_path = os.environ["HEADAS"]
 
     cmd = f"""
     set -e
