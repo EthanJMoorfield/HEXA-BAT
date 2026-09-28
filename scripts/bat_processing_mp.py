@@ -363,12 +363,12 @@ def _process_one(path):
             if config.NOISE_CORRECTION:
                 command.extend(
                     [
-                        f"global_pattern_map=files/one_band_pattern_maps/pattern_noise_survey8a_{year}{day:03d}_14-75.dpi",
-                        f"global_pattern_mask=files/one_band_pattern_maps/pattern_noise_survey8a_{year}{day:03d}_14-75.detmask",
+                        f"global_pattern_map=/Users/ethan/phd/zenodo_pattern_maps/pattern_noise_survey8a_{year}{day:03d}.dpi",
+                        f"global_pattern_mask=/Users/ethan/phd/zenodo_pattern_maps/pattern_noise_survey8a_{year}{day:03d}_inbands.detmask",
                     ]
                     # [
-                    #     f"global_pattern_map=files/hexa_pattern_maps/pattern_noise_map_{year}{day:03d}.fits.gz",
-                    #     f"global_pattern_mask=files/one_band_pattern_maps/pattern_noise_survey8a_{year}{day:03d}_14-75.detmask",
+                    #     f"global_pattern_map=/Users/ethan/phd/backup/pipeline_v8/files/one_band_pattern_maps/pattern_noise_survey8a_{year}{day:03d}_14-75.dpi",
+                    #     f"global_pattern_mask=/Users/ethan/phd/backup/pipeline_v8/files/one_band_pattern_maps/pattern_noise_survey8a_{year}{day:03d}_14-75.detmask",
                     # ]
                 )
 

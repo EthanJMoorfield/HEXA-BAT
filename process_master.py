@@ -21,28 +21,28 @@ class PipelineConfig:
     # SETUP ARGS
     # ----------
 
-    HEADAS = "/home/ethan/miniconda3/envs/venv/heasoft"
-    ARCHIVE_ROOT = "/data/BAT_archive/"
-    N_PROC_PROCESS = 8
-    N_PROC_MOSAIC = 8
+    ARCHIVE_ROOT = "/Volumes/SSD10/BAT_archive/"
+    N_PROC_PROCESS = 12
+    N_PROC_MOSAIC = 12
     AUTOMATE_ENVIRONMENT = True
     DO_PROCESSING = True
-    DO_MOSAICING = False
-    CHECK_PROCESSED = True
-    CHECK_MOSAICED = False
-    CHECK_ARCHIVE = False
+    DO_MOSAICING = True
 
-    START_REV = 1500
-    END_REV = 1500
+    CHECK_PROCESSED = True
+    CHECK_MOSAICED = True
+    CHECK_ARCHIVES = False
+
+    START_REV = 708
+    END_REV = 708
 
     # ---------------
     # PROCESSING ARGS
     # ---------------
 
-    ENERGY_BANDS = "14-75"
+    ENERGY_BANDS = "14-20,20-24,24-35,35-50,50-75,75-100,100-150,150-195"
     CLEANSNR = 6.0
     INCATALOG = "files/HEXA_incatalog.fits"
-    NOISE_CORRECTION = False
+    NOISE_CORRECTION = True
 
     DETTHRESH = 15000
     DETTHRESH2 = 10900
@@ -61,16 +61,16 @@ class PipelineConfig:
     # IO ARGS
     # -------
 
-    KEEP_PROCESSED = True
+    KEEP_PROCESSED = False
     KEEP_MOSAICED = True
-    OUTPUT_MOSAICED = ""
-    LABEL = ""
+    OUTPUT_MOSAICED = "../AI_training_data"
+    LABEL = "8band"
     OUTPUT_PROCESSED = "../temp_proc/"
     COMPRESS = True
     COMPRESSION_LEVEL = 5
-    DECLUTTER = False
+    DECLUTTER = True
     OFFLOAD = False
-    OFFLOAD_DIR = "../benchmarks"
+    OFFLOAD_DIR = ""
 
 
 if __name__ == "__main__":

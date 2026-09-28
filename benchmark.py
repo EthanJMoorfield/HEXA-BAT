@@ -10,14 +10,13 @@ class PipelineConfig:
     # CHANGE THESE IF NEEDED
     # ----------------------
 
-    HEADAS = "/Users/ethan/miniconda3/envs/phd/heasoft"
     ARCHIVE_ROOT = "/Volumes/SSD10/BAT_archive"
-    N_PROC_PROCESS = 8
+    N_PROC_PROCESS = 12
     START_REV = 1500
     END_REV = 1500
     ENERGY_BANDS = "14-75"
     OUTPUT_PROCESSED = "../temp_proc/"
-    OFFLOAD_DIR = "../benchmark/"
+    OFFLOAD_DIR = "/Volumes/SSD9/benchmark/"
 
     # ----------------------------
     # SHOULDN'T NEED TO BE CHANGED

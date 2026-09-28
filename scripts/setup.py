@@ -19,7 +19,10 @@ def update_caldb_init():
     sh_path.write_text(updated_content)
 
 
-def setup_heasoft(headas_path):
+def setup_heasoft():
+    headas_path = os.environ("HEADAS")
+    print(headas_path)
+
     cmd = f"""
     set -e
 
@@ -81,7 +84,7 @@ def setup_proc():
             path.unlink()
 
 
-def setup(headas_path):
+def setup():
     subprocess.run(["chmod", "+x", "files/monitor.sh"], check=True)
 
     os.makedirs(CALDB_PATH, exist_ok=True)
@@ -89,7 +92,7 @@ def setup(headas_path):
 
     update_caldb_init()
 
-    setup_heasoft(headas_path)
+    setup_heasoft()
 
     # subprocess.run(["caldbinfo", "INST", "SWIFT", "BAT"])
 

@@ -13,8 +13,12 @@ from .mosaicing import do_mosaic
 from .rich_tracking import PipelineProgress
 from .setup import setup, setup_proc
 from .transfer import cleanup_processed, offload
-from .util import (check_archive_complete, check_mosaic_complete,
-                   get_img_paths, get_obs_paths)
+from .util import (
+    check_archive_complete,
+    check_mosaic_complete,
+    get_img_paths,
+    get_obs_paths,
+)
 
 
 def process(config, rev: int, rev_map: pd.DataFrame, progress=None):
@@ -83,7 +87,7 @@ def pipeline(config):
     setup_proc()
 
     if config.AUTOMATE_ENVIRONMENT:
-        setup(os.path.abspath(config.HEADAS))
+        setup()
 
     # read master list
     with fits.open("files/independent_bat_revs_master.fits") as f:
