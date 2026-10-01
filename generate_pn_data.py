@@ -9,19 +9,21 @@ class PipelineConfig:
     # CHANGE THESE IF NEEDED
     # ----------------------
 
-    ARCHIVE_ROOT = "/Volumes/SSD10/BAT_archive"
-    N_PROC_PROCESS = 12
-    START_REV = 334
-    END_REV = 500
+    ARCHIVE_ROOT = "/mnt/d/BAT_archive"
+    N_PROC_PROCESS = 16
+    START_REV = 501
+    END_REV = 550
     ENERGY_BANDS = "14-20,20-24,24-35,35-50,50-75,75-100,100-150,150-195"
-    OUTPUT_PROCESSED = "../temp_proc/"
-    OFFLOAD_DIR = "/Volumes/Godzilla/HEXA_PN_data"
+    OUTPUT_PROCESSED = "../../temp_proc/"
+    OFFLOAD_DIR = "/mnt/d/HEXA_PN_data_test/"
 
     # ----------------------------
     # SHOULDN'T NEED TO BE CHANGED
     # ----------------------------
 
     AUTOMATE_ENVIRONMENT = True
+    CONTINUOUS_PROCESSING = True
+    LOOKAHEAD_REVS = 5
     N_PROC_MOSAIC = 8
     DO_MOSAICING = False
     DO_PROCESSING = True

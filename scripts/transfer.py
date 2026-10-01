@@ -111,7 +111,7 @@ def offload(rev, config):
     return len(paths), duration
 
 
-def cleanup_processed(rev, src):
+def cleanup_processed(rev, src, remove_empty_months=True):
     obs_paths = glob.glob(os.path.join(src, "*", "*"))
 
     n_removed = 0
@@ -128,8 +128,11 @@ def cleanup_processed(rev, src):
             shutil.rmtree(path)
             n_removed += 1
 
-    for month_dir in glob.glob(os.path.join(src, "*")):
-        if os.path.isdir(month_dir) and not os.listdir(month_dir):
-            os.rmdir(month_dir)
+    # While continuous processing is active, a worker may be creating its
+    # output inside one of these month directories.
+    if remove_empty_months:
+        for month_dir in glob.glob(os.path.join(src, "*")):
+            if os.path.isdir(month_dir) and not os.listdir(month_dir):
+                os.rmdir(month_dir)
 
     return n_removed

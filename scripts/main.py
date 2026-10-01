@@ -10,6 +10,7 @@ from astropy.table import Table
 
 from .bat_processing_mp import process as bat_process
 from .mosaicing import do_mosaic
+from .continuous_processing import run_continuous
 from .rich_tracking import PipelineProgress
 from .setup import setup, setup_proc
 from .transfer import cleanup_processed, offload
@@ -83,6 +84,18 @@ def pipeline(config):
     if config.CHECK_MOSAICED and not config.DO_MOSAICING:
         raise ValueError("CHECK_MOSAICED=True requires DO_MOSAICING=True")
 
+    if config.CONTINUOUS_PROCESSING and (
+        not config.DO_PROCESSING or config.DO_MOSAICING
+    ):
+        raise ValueError(
+            "CONTINUOUS_PROCESSING requires processing without mosaicking."
+        )
+
+    if config.CONTINUOUS_PROCESSING and (
+        type(config.LOOKAHEAD_REVS) is not int or config.LOOKAHEAD_REVS < 1
+    ):
+        raise ValueError("LOOKAHEAD_REVS must be a positive integer")
+
     # setup proc directory
     setup_proc()
 
@@ -155,7 +168,17 @@ def pipeline(config):
 
     start_time = time.time()
 
-    for i, rev in enumerate(to_process):
+    # continuous processing for processing only runs
+    if config.CONTINUOUS_PROCESSING:
+        run_continuous(config, obs_map, to_process, progress)
+
+        # empty so nothing else runs
+        to_process_loop = []
+    else:
+        to_process_loop = to_process
+
+    # non-continuous processing
+    for i, rev in enumerate(to_process_loop):
         rev_start_time = time.time()
         rev_start_date = datetime.now()
 
