@@ -63,6 +63,17 @@ def classify_failure(output: str) -> str | None:
     return None
 
 
+def classify_survey_data(obsdir: Path) -> str | None:
+    survey_dir = obsdir / "bat" / "survey"
+
+    dph_files = list(survey_dir.glob("*.dph*"))
+
+    if dph_files and all("e20.dph" in f.name for f in dph_files):
+        return "truncated_energy_dph"
+
+    return None
+
+
 def split_paths(a, n):
     """
     Splits images evenly among requested processes
@@ -293,7 +304,16 @@ def _process_one(path):
     with open(timing_file, "a") as f:
         f.write(f"# {obs}\n")
 
-    if config.NOISE_CORRECTION:
+    proc = None
+    staged_dirs = []
+    logs = []
+
+    data_failure = classify_survey_data(Path(path))
+
+    if data_failure is not None:
+        logs.append(f"\nSkipped due to expected data failure: {data_failure}.\n")
+        dph_dates = {}
+    elif config.NOISE_CORRECTION:
         dph_dates = read_gti(path)
         if not dph_dates:
             return None
@@ -304,10 +324,6 @@ def _process_one(path):
                 for p in glob.glob(os.path.join(path, "bat", "survey", "*.dph.gz"))
             ]
         }
-
-    proc = None
-    staged_dirs = []
-    logs = []
 
     requested_bands = config.ENERGY_BANDS.split(",")
     edges = [int(e) for e in sum([band.split("-") for band in requested_bands], [])]
@@ -432,7 +448,7 @@ def _process_one(path):
         if config.COMPRESS:
             compress_fits(work_outdir, config.COMPRESSION_LEVEL)
 
-        if proc:
+        if logs:
             logfile = os.path.join(work_outdir, f"{obs}_log.txt")
 
             with open(logfile, "w+") as f:
