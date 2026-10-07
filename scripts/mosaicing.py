@@ -162,10 +162,8 @@ def mosaic_images(
     # convert flux map to weighted fluxes
     np.multiply(flux_proj.data, weights, out=flux_proj.data)
 
-    if (
-        not config.PCODING_FILTER
-        and np.nanmin(flux_proj.data) < -8e5
-        or np.nanmax(flux_proj.data) > 8e5
+    if not config.PCODING_FILTER and (
+        np.nanmin(flux_proj.data) < -8e5 or np.nanmax(flux_proj.data) > 8e5
     ):
         return None
 

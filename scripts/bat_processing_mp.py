@@ -42,6 +42,9 @@ ARCHIVE_DATA_ERRORS = {
         r"ERROR: no erebinned files were created",
         re.DOTALL,
     ),
+    "missing_gti_input": re.compile(
+        r"ERROR: maketime input file .*? for test '[^']+' not found\."
+    ),
 }
 
 
