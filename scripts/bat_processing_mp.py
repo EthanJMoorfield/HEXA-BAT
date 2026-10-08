@@ -63,13 +63,21 @@ def classify_failure(output: str) -> str | None:
     return None
 
 
-def classify_survey_data(obsdir: Path) -> str | None:
-    survey_dir = obsdir / "bat" / "survey"
+def classify_dph_group(dph_list: list[str]) -> str | None:
+    if not dph_list:
+        return None
 
-    dph_files = list(survey_dir.glob("*.dph*"))
+    is_e20 = ["e20.dph" in fname for fname in dph_list]
+    is_b1 = [bool(re.search(r"b1_\d+\.dph(?:\.gz)?$", fname)) for fname in dph_list]
 
-    if dph_files and all("e20.dph" in f.name for f in dph_files):
+    if all(is_e20):
         return "truncated_energy_dph"
+
+    if all(is_b1):
+        return "nonstandard_b1_dph"
+
+    if all(e20 or b1 for e20, b1 in zip(is_e20, is_b1)):
+        return "unsupported_dph_group"
 
     return None
 
@@ -308,12 +316,7 @@ def _process_one(path):
     staged_dirs = []
     logs = []
 
-    data_failure = classify_survey_data(Path(path))
-
-    if data_failure is not None:
-        logs.append(f"\nSkipped due to expected data failure: {data_failure}.\n")
-        dph_dates = {}
-    elif config.NOISE_CORRECTION:
+    if config.NOISE_CORRECTION:
         dph_dates = read_gti(path)
         if not dph_dates:
             return None
@@ -349,6 +352,16 @@ def _process_one(path):
 
     try:
         for (year, day), dph_list in dph_dates.items():
+            # check for known unsupported DPH file types
+            data_failure = classify_dph_group(dph_list)
+
+            if data_failure is not None:
+                logs.append(
+                    f"\nSkipped due to expected data failure: "
+                    f"{data_failure}. Group: {year}-{day:03d}.\n"
+                )
+                continue
+
             staged = stage_observation(path, dph_list)
             staged_dirs.append(staged)
 
