@@ -12,6 +12,7 @@ from astropy.io import fits
 from astropy.io.fits.verify import VerifyWarning
 from astropy.utils.exceptions import AstropyUserWarning, AstropyWarning
 from gammapy.maps import HpxGeom, HpxMap, Map
+import healpy as hp
 
 from .compress_fits import gzip_file
 from .util import get_mosaic_marker, write_marker
@@ -46,8 +47,78 @@ def split_image_list(a, n):
     return (a[i * k + min(i, m) : (i + 1) * k + min(i + 1, m)] for i in range(n))
 
 
+def project(wcs, shape):
+    # set up coordinate transforms
+    rot_cg = hp.Rotator(coord=["C", "G"])  # equatorial -> galactic
+    rot_gc = hp.Rotator(coord=["G", "C"])  # galactic -> equatorial
+
+    ny, nx = shape
+
+    # define a disc that covers the image: centred on the middle pixel, out to the farthest corners
+
+    # find image centre
+    cx, cy = (nx - 1) / 2, (ny - 1) / 2
+
+    # get centre and 4 corners in world coordinates
+    lon, lat = wcs.all_pix2world(
+        [cx, -0.5, nx - 0.5, -0.5, nx - 0.5], [cy, -0.5, -0.5, ny - 0.5, ny - 0.5], 0
+    )
+
+    # calculate bounding box given by four corners
+    vec = hp.ang2vec(lon, lat, lonlat=True)
+
+    # calculate maximum angular distance between image centre and its four corners
+    radius = np.arccos(np.clip(vec[1:] @ vec[0], -1, 1)).max() * 1.01 + np.radians(
+        0.5
+    )  # add 1% + 0.5 degree margin
+
+    # transform encompassing circle into galactic coords
+    l0, b0 = rot_cg(lon[0], lat[0], lonlat=True)
+
+    # get all pixels in circle -> a lot faster than using the entire map
+    pix = hp.query_disc(1024, hp.ang2vec(l0, b0, lonlat=True), radius, nest=True)
+
+    # convert HEALPix coordinates back to image coordinates
+    l, b = hp.pix2ang(1024, pix, nest=True, lonlat=True)
+    ra, dec = rot_gc(l, b, lonlat=True)
+    x, y = wcs.all_world2pix(ra, dec, 0)
+
+    # only use pixels where the transformations were successful
+    ok = np.isfinite(x) & np.isfinite(y)
+
+    # round to nearest pixel centres -> nearest neighbour
+    xi, yi = (
+        np.rint(np.where(ok, x, -1)).astype(int),
+        np.rint(np.where(ok, y, -1)).astype(int),
+    )
+
+    # reject pixels outside image
+    inside = ok & (xi >= 0) & (xi < nx) & (yi >= 0) & (yi < ny)
+
+    # return healpix pixels and corresponding x+y pixels of image
+    return pix[inside], xi[inside], yi[inside]
+
+
+def to_hpx(data, lookup, npix):
+    # use lookup given by project() to locate values in healpix map
+    pix, xi, yi = lookup
+    out = np.full(npix, np.nan, dtype=np.float32)
+    v = data[yi, xi]
+    out[pix] = np.where(
+        np.isfinite(v), v, 0
+    )  # gammapy turns nan and inf inside the image into 0
+
+    return out
+
+
 def mosaic_images(
-    procid: int, flux_map: Map, err_map: Map, pcoding_map: Map, expo: float, config
+    procid: int,
+    flux_map: Map,
+    err_map: Map,
+    pcoding_map: Map,
+    expo: float,
+    proj_lookup,
+    config,
 ):
     # read images
     with warnings.catch_warnings():
@@ -121,14 +192,14 @@ def mosaic_images(
     expo_map.data = expo
 
     # reproject maps to healpix
-    flux_proj = flux_map.interp_to_geom(
-        geom, preserve_counts=False, fill_value=np.nan, method="nearest"
+    flux_proj = Map.from_geom(
+        geom, data=to_hpx(flux_map.data, proj_lookup, geom.data_shape[0])
     )
-    var_proj = err_map.interp_to_geom(
-        geom, preserve_counts=False, fill_value=np.nan, method="nearest"
+    var_proj = Map.from_geom(
+        geom, data=to_hpx(err_map.data, proj_lookup, geom.data_shape[0])
     )
-    expo_proj = expo_map.interp_to_geom(
-        geom, preserve_counts=False, fill_value=np.nan, method="nearest"
+    expo_proj = Map.from_geom(
+        geom, data=to_hpx(expo_map.data, proj_lookup, geom.data_shape[0])
     )
 
     # check if nans match exactly for projected arrays
@@ -191,6 +262,8 @@ def mosaic_dispatch(
             expo_s = flux_hdul[0].header["EXPOSURE"]
             pcoding_map = Map.from_hdulist(flux_hdul, hdu=len(requested_bands))
 
+            proj_lookup = project(pcoding_map.geom.wcs, pcoding_map.data.shape)
+
             for idx, band in enumerate(requested_bands):
                 flux_map = Map.from_hdulist(flux_hdul, hdu=idx)
                 err_map = Map.from_hdulist(err_hdul, hdu=idx)
@@ -201,6 +274,7 @@ def mosaic_dispatch(
                     err_map,
                     pcoding_map,
                     expo_s,
+                    proj_lookup,
                     config,
                 )
 
