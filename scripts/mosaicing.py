@@ -99,14 +99,19 @@ def project(wcs, shape):
     return pix[inside], xi[inside], yi[inside]
 
 
-def to_hpx(data, lookup, npix):
-    # use lookup given by project() to locate values in healpix map
+def sample(data, lookup):
+    # use lookup given by project() to read the image at the healpix pixels (float32, like the healpix maps)
     pix, xi, yi = lookup
-    out = np.full(npix, np.nan, dtype=np.float32)
     v = data[yi, xi]
-    out[pix] = np.where(
-        np.isfinite(v), v, 0
-    )  # gammapy turns nan and inf inside the image into 0
+
+    # gammapy turns nan and inf inside the image into 0
+    return np.where(np.isfinite(v), v, 0).astype(np.float32)
+
+
+def to_hpx(data, lookup, npix):
+    # the same values placed in a full-sky healpix map (nan outside the image)
+    out = np.full(npix, np.nan, dtype=np.float32)
+    out[lookup[0]] = sample(data, lookup)
 
     return out
 
@@ -191,24 +196,13 @@ def mosaic_images(
     err_map.data = var
     expo_map.data = expo
 
-    # reproject maps to healpix
-    flux_proj = Map.from_geom(
-        geom, data=to_hpx(flux_map.data, proj_lookup, geom.data_shape[0])
-    )
-    var_proj = Map.from_geom(
-        geom, data=to_hpx(err_map.data, proj_lookup, geom.data_shape[0])
-    )
-    expo_proj = Map.from_geom(
-        geom, data=to_hpx(expo_map.data, proj_lookup, geom.data_shape[0])
-    )
-
-    # check if nans match exactly for projected arrays
-    if not np.array_equal(np.isnan(flux_proj.data), np.isnan(var_proj.data)):
-        if not np.array_equal(np.isnan(flux_proj.data), np.isnan(expo_proj.data)):
-            print("WARNING: Mismatch in projected flux/var/expo NaNs detected.")
+    # read the maps at the healpix pixels of the image (only these pixels can have a weight)
+    flux_s = sample(flux_map.data, proj_lookup)
+    var_s = sample(err_map.data, proj_lookup)
+    expo_s = sample(expo_map.data, proj_lookup)
 
     # calculate weights
-    weights = var_proj.data
+    weights = var_s
 
     good_weight = np.isfinite(weights) & (weights > 0)
 
@@ -216,29 +210,31 @@ def mosaic_images(
     np.reciprocal(weights, out=weights, where=good_weight)
     weights[~good_weight] = 0.0
 
-    if not np.all(np.isfinite(flux_proj.data[good_weight])):
+    if not np.all(np.isfinite(flux_s[good_weight])):
         raise RuntimeError("Non-finite projected flux with non-zero weight detected.")
 
-    expo_proj.data[~good_weight] = 0.0
+    expo_s[~good_weight] = 0.0
 
     # nan/inf pixels get zero weight
     weights[~np.isfinite(weights)] = 0
 
-    # nan pixels get zero value (ok as they also get zero weight)
-    flux_proj.data = np.nan_to_num(flux_proj.data, copy=False)
-
-    # nan exposures get zero value, and hence don't contribute
-    expo_proj.data = np.nan_to_num(expo_proj.data, copy=False)
-
     # convert flux map to weighted fluxes
-    np.multiply(flux_proj.data, weights, out=flux_proj.data)
+    np.multiply(flux_s, weights, out=flux_s)
 
-    if not config.PCODING_FILTER and (
-        np.nanmin(flux_proj.data) < -8e5 or np.nanmax(flux_proj.data) > 8e5
+    if (
+        not config.PCODING_FILTER
+        and flux_s.size
+        and (np.nanmin(flux_s) < -8e5 or np.nanmax(flux_s) > 8e5)
     ):
         return None
 
-    return flux_proj.data, weights, expo_proj.data
+    # pixels without a weight contribute nothing to any of the sums, so only pass back the others
+    return (
+        proj_lookup[0][good_weight],
+        flux_s[good_weight],
+        weights[good_weight],
+        expo_s[good_weight],
+    )
 
 
 def mosaic_dispatch(
@@ -284,13 +280,15 @@ def mosaic_dispatch(
 
                     continue
 
-                weighted, weights, expo = proj
+                pix, weighted, weights, expo = proj
 
-                accumulators[f"local_weighted_{band}"].data += weighted
-                accumulators[f"local_weights_{band}"].data += weights
-                accumulators[f"local_expo_{band}"].data += expo
+                # pixels are unique within one image so plain fancy-index adds are fine
+                accumulators[f"local_weighted_{band}"].data[pix] += weighted
+                accumulators[f"local_weights_{band}"].data[pix] += weights
+                accumulators[f"local_expo_{band}"].data[pix] += expo
 
                 del proj
+                del pix
                 del weighted
                 del weights
                 del expo
