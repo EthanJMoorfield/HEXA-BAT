@@ -5,6 +5,7 @@ import warnings
 from pathlib import Path
 from queue import Empty
 
+import healpy as hp
 import multiprocess
 import numpy as np
 import pywt
@@ -12,7 +13,6 @@ from astropy.io import fits
 from astropy.io.fits.verify import VerifyWarning
 from astropy.utils.exceptions import AstropyUserWarning, AstropyWarning
 from gammapy.maps import HpxGeom, HpxMap, Map
-import healpy as hp
 
 from .compress_fits import gzip_file
 from .util import get_mosaic_marker, write_marker
@@ -540,7 +540,7 @@ def do_mosaic(rev: int, img_paths: tuple[str] | tuple[Path], config, progress=No
 
         # write completion marker to output directory
         marker = get_mosaic_marker(
-            band,
+            config.ENERGY_BANDS,
             config.PCODING_FILTER,
             config.PCODING_THRESH,
             config.DO_WAVELET,

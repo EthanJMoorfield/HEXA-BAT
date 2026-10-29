@@ -9,10 +9,10 @@ from astropy.io import fits
 from astropy.table import Table
 
 from .bat_processing_mp import process as bat_process
-from .mosaicing import do_mosaic
 from .continuous_processing import run_continuous
+from .mosaicing import do_mosaic
 from .rich_tracking import PipelineProgress
-from .setup import setup, setup_proc
+from .setup_batsurvey import setup, setup_proc
 from .transfer import cleanup_processed, offload
 from .util import (
     check_archive_complete,
