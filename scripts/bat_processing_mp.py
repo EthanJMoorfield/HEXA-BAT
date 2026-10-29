@@ -33,7 +33,7 @@ EXPECTED_DATA_ERRORS = {
 
 ARCHIVE_DATA_ERRORS = {
     "missing_hk_extension": re.compile(
-        r"/bat/hk/\S+\.hk(?:\.gz)?\[[^\]]+\].*?"
+        r"/(?:bat/hk|auxil)/\S+\.hk(?:\.gz)?\[[^\]]+\].*?"
         r"ffopen could not move to the specified extension:",
         re.DOTALL,
     ),
@@ -44,6 +44,11 @@ ARCHIVE_DATA_ERRORS = {
     ),
     "missing_gti_input": re.compile(
         r"ERROR: maketime input file .*? for test '[^']+' not found\."
+    ),
+    "null_gti_time": re.compile(
+        r"maketime[\d.]* : NULL found in time column.*?"
+        r"ERROR: GTI creation of .*? failed",
+        re.DOTALL,
     ),
 }
 

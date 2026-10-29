@@ -22,7 +22,7 @@ from .util import (
 )
 
 
-def process(config, rev: int, rev_map: pd.DataFrame, progress=None):
+def process(config, rev_map: pd.DataFrame, progress=None):
     paths, n_processed = get_obs_paths(
         config,
         rev_map,
@@ -202,7 +202,7 @@ def pipeline(config):
                 "heading",
                 f"Processing revolution {rev} ({i + 1}/{len(to_process)})",
             )
-            n_obs = process(config, rev, rev_map, progress=progress)
+            n_obs = process(config, rev_map, progress=progress)
 
         proc_time = time.time()
 
